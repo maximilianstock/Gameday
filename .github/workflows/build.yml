@@ -1,0 +1,75 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and package
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Work out version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (Release, ad-hoc signed)
+        run: |
+          xcodebuild \
+            -project Gameday.xcodeproj \
+            -scheme Gameday \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            build | tail -20
+
+      - name: Package
+        run: |
+          cd build/Build/Products/Release
+          ditto -c -k --sequesterRsrc --keepParent Gameday.app "Gameday-${{ steps.version.outputs.version }}.zip"
+          ls -la *.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gameday-${{ steps.version.outputs.version }}
+          path: build/Build/Products/Release/Gameday-*.zip
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/Build/Products/Release/Gameday-*.zip
+          generate_release_notes: true
+          body: |
+            Download the zip, unpack it and move **Gameday.app** to your Applications folder.
+
+            macOS will refuse to open it the first time because the app isn't notarized. Either:
+            - open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**, or
+            - run `xattr -d com.apple.quarantine /Applications/Gameday.app` in Terminal.
