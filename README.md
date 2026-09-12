@@ -8,6 +8,8 @@ A menu bar app for macOS that shows today's games across the leagues you follow.
 - Pick leagues in the popover; changes apply immediately
 - **Top matches**: games between top teams (by the current table, or last season's early on) and Grand Slam semis and finals get a spectrum outline
 - **Favorites**: search any club or tennis player; their games get a star
+- A filter in the header shows only top matches and favorites
+- Games whose participants aren't decided yet ("TBD") stay hidden
 - Live game count in the menu bar, launch at login
 
 ## Install
@@ -30,6 +32,7 @@ Requires macOS 15.1 or later.
 | T | Back to today |
 | R or ⌘R | Refresh |
 | F | Favorites |
+| H | Only top matches and favorites |
 | , or ⌘, | Leagues |
 | Esc | Back, then close |
 
@@ -77,4 +80,4 @@ The build is ad-hoc signed, which is why the install step above is needed. With 
 Debug builds accept launch arguments that make UI checks reproducible without clicking through the menu bar:
 
 - `--snapshot <dir>` renders the scores, leagues and favorites pages in light and dark mode to PNG files using fixture data; add `--live` to use real data for today.
-- `--open-popover [--leagues | --favorites [--query text]]` opens the popover right after launch.
+- `--open-popover [--leagues | --favorites [--query text] | --highlights-only]` opens the popover right after launch.

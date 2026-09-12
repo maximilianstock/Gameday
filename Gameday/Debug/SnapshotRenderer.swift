@@ -50,8 +50,9 @@ enum SnapshotRenderer {
             ("dark", .darkAqua, .dark),
         ]
         for (label, appearanceName, scheme) in appearances {
-            for (pageLabel, page) in [("scores", Page.scores), ("leagues", Page.leagues), ("favorites", Page.favorites)] {
+            for (pageLabel, page) in [("scores", Page.scores), ("scores-highlights", Page.scores), ("leagues", Page.leagues), ("favorites", Page.favorites)] {
                 store.page = page
+                store.showsHighlightsOnly = pageLabel == "scores-highlights"
                 let view = RootView(store: store)
                     .environment(\.colorScheme, scheme)
                     .environment(\.isSnapshotMode, true)

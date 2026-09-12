@@ -113,6 +113,8 @@ enum ESPNMapper {
             awayParticipant.isWinner = awayScore > homeScore
         }
 
+        guard !isPlaceholder(homeParticipant.name), !isPlaceholder(awayParticipant.name) else { return nil }
+
         let awayFirst = league.sport.listsAwayTeamFirst
         return Game(
             id: "\(league.id)#\(event.id)",
@@ -187,6 +189,9 @@ enum ESPNMapper {
         let competitors = (competition.competitors ?? []).sorted { ($0.order ?? 0) < ($1.order ?? 0) }
         guard competitors.count >= 2 else { return nil }
         let (phase, statusText) = phaseAndText(status: competition.status, sport: .tennis)
+        let first = tennisParticipant(competitors[0])
+        let second = tennisParticipant(competitors[1])
+        guard !isPlaceholder(first.name), !isPlaceholder(second.name) else { return nil }
         return Game(
             id: "tennis#\(competition.id)",
             leagueID: league.id,
@@ -195,8 +200,8 @@ enum ESPNMapper {
             phase: phase,
             statusText: statusText,
             roundText: roundAbbreviation(competition.round?.displayName),
-            first: tennisParticipant(competitors[0]),
-            second: tennisParticipant(competitors[1]),
+            first: first,
+            second: second,
             link: link(from: event.links),
             hasStartTime: competition.timeValid ?? true,
             isMajor: event.major ?? false
@@ -322,6 +327,16 @@ enum ESPNMapper {
     }
 
     // MARK: Helpers
+
+    /// ESPN lists undecided slots in draws and cup ties as "TBD" (doubles: "TBD / TBD").
+    static func isPlaceholder(_ name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed == "Unknown" { return true }
+        let tokens = trimmed.uppercased().split(whereSeparator: { $0 == " " || $0 == "/" })
+        if tokens.contains("TBD") || tokens.contains("TBA") { return true }
+        let lower = trimmed.lowercased()
+        return lower.hasPrefix("winner of") || lower.hasPrefix("loser of") || lower.hasPrefix("qualifier")
+    }
 
     private static func link(from links: [ESPNLink]?) -> URL? {
         guard let links else { return nil }

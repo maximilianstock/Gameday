@@ -61,11 +61,31 @@ final class ScoreboardStore {
 
     var isToday: Bool { calendar.isDateInToday(selectedDay) }
 
-    var hasLiveGames: Bool { sections.contains { $0.liveCount > 0 } }
+    var hasLiveGames: Bool { visibleSections.contains { $0.liveCount > 0 } }
 
     var hasPartialFailure: Bool { !failedLeagueIDs.isEmpty && loadError == nil }
 
-    var hasTopMatches: Bool { sections.contains { $0.games.contains(where: \.isTopMatch) } }
+    var hasTopMatches: Bool { visibleSections.contains { $0.games.contains(where: \.isTopMatch) } }
+
+    var showsHighlightsOnly: Bool {
+        get { preferences.showsHighlightsOnly }
+        set { preferences.showsHighlightsOnly = newValue }
+    }
+
+    /// Sections as the list shows them: everything, or only top matches and favourites.
+    var visibleSections: [ScoreSection] {
+        guard preferences.showsHighlightsOnly else { return sections }
+        return sections.compactMap { section in
+            var filtered = section
+            filtered.games = section.games.filter { $0.isTopMatch || $0.involvesFavorite }
+            return filtered.games.isEmpty ? nil : filtered
+        }
+    }
+
+    /// True when the filter hides games that exist on this day.
+    var isFilterHidingGames: Bool {
+        preferences.showsHighlightsOnly && visibleSections.isEmpty && sections.contains { !$0.games.isEmpty }
+    }
 
     var dayTitle: String {
         let dayPart = selectedDay.formatted(.dateTime.day().month(.abbreviated))

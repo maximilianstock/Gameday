@@ -90,6 +90,8 @@ enum LeagueCatalog {
         "soccer/esp.1",
         "soccer/ita.1",
         "soccer/uefa.champions",
+        "soccer/uefa.europa",
+        "soccer/uefa.europa.conf",
         "football/nfl",
         "basketball/nba",
         "tennis/atp",

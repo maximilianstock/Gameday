@@ -33,6 +33,9 @@ struct ScoresView: View {
                     .padding(.leading, 2)
             }
             Spacer(minLength: 4)
+            FilterToggle(isOn: store.showsHighlightsOnly) {
+                store.showsHighlightsOnly.toggle()
+            }
             if store.isLoading {
                 ProgressView()
                     .controlSize(.small)
@@ -76,6 +79,15 @@ struct ScoresView: View {
             ) {
                 Task { await store.refresh() }
             }
+        } else if store.isFilterHidingGames {
+            EmptyState(
+                symbol: "line.3.horizontal.decrease",
+                title: "No highlights",
+                message: "No top matches or favorites in your leagues on this day.",
+                buttonTitle: "Show all games"
+            ) {
+                store.showsHighlightsOnly = false
+            }
         } else if store.sections.isEmpty {
             if store.isLoading && store.lastUpdated == nil {
                 EmptyState(symbol: nil, title: "Loading scores…", message: nil, buttonTitle: nil, action: nil)
@@ -90,7 +102,7 @@ struct ScoresView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(store.sections) { section in
+                ForEach(store.visibleSections) { section in
                     SectionHeader(section: section)
                     ForEach(section.games) { game in
                         GameRow(game: game, animatesHighlights: store.isPopoverShown)
@@ -141,6 +153,33 @@ struct ScoresView: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 26)
+    }
+}
+
+// MARK: - Filter toggle
+
+/// Header toggle for "only top matches and favorites". Reads as pressed while active.
+struct FilterToggle: View {
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(isOn ? Theme.accent : Theme.textSecondary)
+                .frame(width: 26, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(isOn ? Theme.accent.opacity(0.12) : Color.clear)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .hoverHighlight(cornerRadius: 5, enabled: !isOn)
+        .help(isOn ? "Showing only top matches and favorites" : "Show only top matches and favorites")
+        .accessibilityLabel("Only top matches and favorites")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 
@@ -231,6 +270,11 @@ struct MoreMenu: View {
             Button("Choose Leagues…") { store.page = .leagues }
                 .keyboardShortcut(",", modifiers: .command)
             Button("Favorites…") { store.page = .favorites }
+            Divider()
+            Toggle("Only Top Matches & Favorites", isOn: Binding(
+                get: { store.showsHighlightsOnly },
+                set: { store.showsHighlightsOnly = $0 }
+            ))
             Divider()
             Toggle("Launch at Login", isOn: Binding(
                 get: { launchAtLogin },

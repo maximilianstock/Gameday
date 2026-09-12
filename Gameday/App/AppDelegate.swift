@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 if CommandLine.arguments.contains("--leagues") { self?.store.page = .leagues }
                 if CommandLine.arguments.contains("--favorites") { self?.store.page = .favorites }
+                if CommandLine.arguments.contains("--highlights-only") { self?.store.showsHighlightsOnly = true }
                 if let index = CommandLine.arguments.firstIndex(of: "--query"), index + 1 < CommandLine.arguments.count {
                     self?.store.debugSearchQuery = CommandLine.arguments[index + 1]
                 }
@@ -251,6 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case "r": Task { await store.refresh() }; return true
         case ",": store.page = store.page == .leagues ? .scores : .leagues; return true
         case "f": store.page = store.page == .favorites ? .scores : .favorites; return true
+        case "h": store.showsHighlightsOnly.toggle(); return true
         default: return false
         }
     }
