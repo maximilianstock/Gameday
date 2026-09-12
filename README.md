@@ -8,7 +8,7 @@ A menu bar app for macOS that shows today's games across the leagues you follow.
 - Pick leagues in the popover; changes apply immediately
 - **Top matches**: games between top teams (by the current table, or last season's early on) and Grand Slam semis and finals get a spectrum outline
 - **Favorites**: search any club or tennis player; their games get a star
-- A filter in the header shows only top matches and favorites
+- A filter in the header shows only top matches and favorites (off at every launch)
 - Games whose participants aren't decided yet ("TBD") stay hidden
 - Live game count in the menu bar
 - Starts at login automatically once it runs from the Applications folder (switch it off in the ⋯ menu)

@@ -8,7 +8,6 @@ final class Preferences {
     private static let selectedLeaguesKey = "selectedLeagueIDs"
     private static let tennisQualifyingKey = "showsTennisQualifying"
     private static let favoritesKey = "favorites"
-    private static let highlightsOnlyKey = "showsHighlightsOnly"
     private static let launchAtLoginOfferedKey = "didEnableLaunchAtLoginAutomatically"
     private static let selectionVersionKey = "leagueSelectionVersion"
     /// Bump when leagues are added to the default selection; existing users get them added once.
@@ -28,10 +27,9 @@ final class Preferences {
 
     var favoriteIDs: Set<String> { Set(favorites.map(\.id)) }
 
-    /// Show only top matches and games of favourites.
-    var showsHighlightsOnly: Bool {
-        didSet { defaults.set(showsHighlightsOnly, forKey: Self.highlightsOnlyKey) }
-    }
+    /// Show only top matches and games of favourites. Deliberately not persisted: every launch
+    /// starts with the full list.
+    var showsHighlightsOnly = false
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -49,7 +47,6 @@ final class Preferences {
         }
         defaults.set(Self.currentSelectionVersion, forKey: Self.selectionVersionKey)
         showsTennisQualifying = defaults.bool(forKey: Self.tennisQualifyingKey)
-        showsHighlightsOnly = defaults.bool(forKey: Self.highlightsOnlyKey)
         if let data = defaults.data(forKey: Self.favoritesKey),
            let stored = try? JSONDecoder().decode([Favorite].self, from: data) {
             favorites = stored
