@@ -9,6 +9,7 @@ final class Preferences {
     private static let tennisQualifyingKey = "showsTennisQualifying"
     private static let favoritesKey = "favorites"
     private static let highlightsOnlyKey = "showsHighlightsOnly"
+    private static let launchAtLoginOfferedKey = "didEnableLaunchAtLoginAutomatically"
     private static let selectionVersionKey = "leagueSelectionVersion"
     /// Bump when leagues are added to the default selection; existing users get them added once.
     private static let currentSelectionVersion = 2
@@ -104,6 +105,13 @@ final class Preferences {
 
     var launchAtLogin: Bool {
         SMAppService.mainApp.status == .enabled
+    }
+
+    /// Turns launch at login on once, the first time the app runs from an Applications folder.
+    func enableLaunchAtLoginOnFirstRun(isInstalled: Bool) {
+        guard isInstalled, !defaults.bool(forKey: Self.launchAtLoginOfferedKey) else { return }
+        defaults.set(true, forKey: Self.launchAtLoginOfferedKey)
+        try? setLaunchAtLogin(true)
     }
 
     func setLaunchAtLogin(_ enabled: Bool) throws {

@@ -10,13 +10,15 @@ A menu bar app for macOS that shows today's games across the leagues you follow.
 - **Favorites**: search any club or tennis player; their games get a star
 - A filter in the header shows only top matches and favorites
 - Games whose participants aren't decided yet ("TBD") stay hidden
-- Live game count in the menu bar, launch at login
+- Live game count in the menu bar
+- Starts at login automatically once it runs from the Applications folder (switch it off in the ⋯ menu)
+- Updates itself: new releases on GitHub show up as a one-line banner, one click installs and relaunches
 
 ## Install
 
 1. Download the latest `Gameday-x.y.z.zip` from the [Releases](../../releases) page and unpack it.
 2. Move `Gameday.app` to your Applications folder and open it. It lives in the menu bar; there is no Dock icon.
-3. The first launch is blocked because the app isn't notarized with Apple. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Alternatively run this once in Terminal:
+3. The first launch is blocked because the app isn't notarized with Apple. Later updates install from inside the app and don't trigger this again. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Alternatively run this once in Terminal:
 
    ```sh
    xattr -d com.apple.quarantine /Applications/Gameday.app
@@ -80,4 +82,5 @@ The build is ad-hoc signed, which is why the install step above is needed. With 
 Debug builds accept launch arguments that make UI checks reproducible without clicking through the menu bar:
 
 - `--snapshot <dir>` renders the scores, leagues and favorites pages in light and dark mode to PNG files using fixture data; add `--live` to use real data for today.
-- `--open-popover [--leagues | --favorites [--query text] | --highlights-only]` opens the popover right after launch.
+- `--open-popover [--leagues | --favorites [--query text] | --highlights-only | --check-updates]` opens the popover right after launch.
+- `--auto-update` checks GitHub and, if a newer release exists, installs it and relaunches; useful for testing the updater against a build with a lower version number.

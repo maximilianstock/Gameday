@@ -29,6 +29,7 @@ final class ScoreboardStore {
     let preferences: Preferences
     let calendar: Calendar
     let searchService = SearchService()
+    let updates = UpdateController()
 
     private let service: ScoreboardProviding
     private let highlightEngine = HighlightEngine()

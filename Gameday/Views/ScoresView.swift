@@ -8,6 +8,10 @@ struct ScoresView: View {
         VStack(spacing: 0) {
             header
             HairlineDivider()
+            if store.updates.pendingUpdate != nil {
+                UpdateBanner(updates: store.updates)
+                HairlineDivider()
+            }
             SelfSizingScrollView(minHeight: Theme.minListHeight, maxHeight: Theme.maxListHeight) {
                 content
             }
@@ -125,6 +129,19 @@ struct ScoresView: View {
                 Text("Some leagues didn't update")
                     .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.textTertiary)
+            } else if case .checking = store.updates.state {
+                Text("Checking for updates…")
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Theme.textTertiary)
+            } else if case .upToDate = store.updates.state {
+                Text("Gameday \(store.updates.currentVersion) is up to date")
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Theme.textTertiary)
+            } else if case .failed(let message, nil) = store.updates.state {
+                Text("Update check failed: \(message)")
+                    .font(Theme.Fonts.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                    .lineLimit(1)
             } else if let updated = store.lastUpdated {
                 Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
                     .font(Theme.Fonts.caption)
@@ -153,6 +170,79 @@ struct ScoresView: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 26)
+    }
+}
+
+// MARK: - Update banner
+
+/// One quiet row under the header while a newer build is available or being installed.
+struct UpdateBanner: View {
+    let updates: UpdateController
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.accent)
+            Text(message)
+                .font(Theme.Fonts.caption)
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            actions
+        }
+        .padding(.leading, 14)
+        .padding(.trailing, 8)
+        .frame(height: 32)
+        .background(Theme.accent.opacity(0.06))
+    }
+
+    private var symbol: String {
+        if case .failed = updates.state { return "exclamationmark.circle" }
+        return "arrow.down.circle"
+    }
+
+    private var message: String {
+        switch updates.state {
+        case .available(let update):
+            return "Gameday \(update.version) is available"
+        case .downloading(let update, let fraction):
+            if let fraction { return "Downloading \(update.version)… \(Int(fraction * 100))%" }
+            return "Downloading \(update.version)…"
+        case .installing(let update):
+            return "Installing \(update.version)…"
+        case .failed(let error, _):
+            return "Update failed: \(error)"
+        default:
+            return ""
+        }
+    }
+
+    @ViewBuilder
+    private var actions: some View {
+        switch updates.state {
+        case .available:
+            if updates.canInstallInPlace {
+                TextButton(title: "Update", prominent: true) { Task { await updates.install() } }
+            } else {
+                TextButton(title: "Download", prominent: true) { Task { await updates.install() } }
+                    .help("Move Gameday to the Applications folder to update in place")
+            }
+            IconButton(symbol: "xmark", help: "Skip this version", size: 22) { updates.dismissPendingUpdate() }
+        case .downloading, .installing:
+            ProgressView()
+                .controlSize(.small)
+                .frame(width: 22, height: 22)
+                .padding(.trailing, 4)
+        case .failed(_, let update):
+            if update != nil {
+                TextButton(title: "Try again") { Task { await updates.install() } }
+            }
+            TextButton(title: "Release page") { NSWorkspace.shared.open(UpdateController.releasesPage) }
+            IconButton(symbol: "xmark", help: "Dismiss", size: 22) { updates.dismissPendingUpdate() }
+        default:
+            EmptyView()
+        }
     }
 }
 
@@ -288,6 +378,9 @@ struct MoreMenu: View {
                 }
             ))
             Divider()
+            Button("Check for Updates…") {
+                Task { await store.updates.check(userInitiated: true) }
+            }
             Button("About Gameday") {
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.orderFrontStandardAboutPanel(nil)

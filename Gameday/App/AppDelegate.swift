@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import ServiceManagement
 import SwiftUI
 
 @MainActor
@@ -21,17 +22,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         setUpStatusItem()
         setUpPopover()
         observeLiveCount()
+        store.preferences.enableLaunchAtLoginOnFirstRun(isInstalled: UpdateController.appLocation == .applications)
+        store.updates.startAutomaticChecks()
         Task { await store.refreshToday() }
         backgroundTimer = Timer.scheduledTimer(withTimeInterval: 5 * 60, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.store.refreshToday() }
         }
 
         #if DEBUG
+        if CommandLine.arguments.contains("--login-status") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                guard let self else { return }
+                print("login item: location=\(UpdateController.appLocation) enabled=\(self.store.preferences.launchAtLogin) status=\(SMAppService.mainApp.status.rawValue)")
+                if CommandLine.arguments.contains("--login-off") {
+                    try? self.store.preferences.setLaunchAtLogin(false)
+                    print("login item after disabling: enabled=\(self.store.preferences.launchAtLogin)")
+                }
+                exit(0)
+            }
+        }
+        if CommandLine.arguments.contains("--auto-update") {
+            Task { [weak self] in
+                guard let self else { return }
+                await self.store.updates.check(userInitiated: true)
+                print("update state after check: \(self.store.updates.state)")
+                await self.store.updates.install()
+                print("update state after install: \(self.store.updates.state)")
+            }
+        }
         if CommandLine.arguments.contains("--open-popover") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 if CommandLine.arguments.contains("--leagues") { self?.store.page = .leagues }
                 if CommandLine.arguments.contains("--favorites") { self?.store.page = .favorites }
                 if CommandLine.arguments.contains("--highlights-only") { self?.store.showsHighlightsOnly = true }
+                if CommandLine.arguments.contains("--check-updates") {
+                    Task { await self?.store.updates.check(userInitiated: true) }
+                }
                 if let index = CommandLine.arguments.firstIndex(of: "--query"), index + 1 < CommandLine.arguments.count {
                     self?.store.debugSearchQuery = CommandLine.arguments[index + 1]
                 }
