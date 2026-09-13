@@ -54,7 +54,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 if CommandLine.arguments.contains("--leagues") { self?.store.page = .leagues }
                 if CommandLine.arguments.contains("--favorites") { self?.store.page = .favorites }
+                if let index = CommandLine.arguments.firstIndex(of: "--standings"), index + 1 < CommandLine.arguments.count {
+                    self?.store.page = .standings(leagueID: CommandLine.arguments[index + 1])
+                }
                 if CommandLine.arguments.contains("--highlights-only") { self?.store.showsHighlightsOnly = true }
+                if let index = CommandLine.arguments.firstIndex(of: "--day-offset"), index + 1 < CommandLine.arguments.count,
+                   let offset = Int(CommandLine.arguments[index + 1]) {
+                    self?.store.debugMoveSelectedDay(by: offset)
+                }
                 if CommandLine.arguments.contains("--check-updates") {
                     Task { await self?.store.updates.check(userInitiated: true) }
                 }

@@ -140,6 +140,8 @@ struct ESPNTeam: Decodable {
     var abbreviation: String?
     var name: String?
     var logo: String?
+    /// Standings send an array of logos instead of `logo`.
+    var logos: [ESPNLogo]?
 }
 
 struct ESPNAthlete: Decodable {
@@ -165,17 +167,27 @@ struct ESPNSeasonInfo: Decodable {
 
 struct ESPNStandingsGroup: Decodable {
     var name: String?
+    var abbreviation: String?
     var standings: ESPNStandings?
     var children: [ESPNStandingsGroup]?
 }
 
 struct ESPNStandings: Decodable {
+    var seasonDisplayName: String?
     var entries: [ESPNStandingsEntry]?
+    var links: [ESPNLink]?
 }
 
 struct ESPNStandingsEntry: Decodable {
     var team: ESPNTeam?
+    var note: ESPNStandingsNote?
     var stats: [ESPNStat]?
+}
+
+/// Qualification or relegation zone of a table row ("Champions League", "Relegation").
+struct ESPNStandingsNote: Decodable {
+    var color: String?
+    var description: String?
 }
 
 struct ESPNStat: Decodable {

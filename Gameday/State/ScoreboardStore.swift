@@ -5,6 +5,7 @@ enum Page: Hashable {
     case scores
     case leagues
     case favorites
+    case standings(leagueID: String)
 }
 
 /// Source of truth for what the popover shows: the selected day, the loaded sections and
@@ -30,9 +31,14 @@ final class ScoreboardStore {
     let calendar: Calendar
     let searchService = SearchService()
     let updates = UpdateController()
+    /// League tables by league id, once loaded. Feed the table page and the positions in the list.
+    private(set) var standings: [String: Standings] = [:]
+    /// Leagues whose table couldn't be loaded on the last attempt.
+    private(set) var failedStandingsIDs: Set<String> = []
 
     private let service: ScoreboardProviding
-    private let highlightEngine = HighlightEngine()
+    private let standingsService: StandingsService
+    private let highlightEngine: HighlightEngine
     private var cache: [String: CacheEntry] = [:]
     private var loadGeneration = 0
     /// Game ids the highlight engine has classified as top matches.
@@ -52,6 +58,9 @@ final class ScoreboardStore {
         self.preferences = preferences
         self.calendar = calendar
         self.selectedDay = calendar.startOfDay(for: Date())
+        let standingsService = StandingsService()
+        self.standingsService = standingsService
+        self.highlightEngine = HighlightEngine(standingsService: standingsService)
     }
 
     // MARK: Derived state
@@ -66,7 +75,9 @@ final class ScoreboardStore {
 
     var hasPartialFailure: Bool { !failedLeagueIDs.isEmpty && loadError == nil }
 
-    var hasTopMatches: Bool { visibleSections.contains { $0.games.contains(where: \.isTopMatch) } }
+    var hasTablePositions: Bool {
+        visibleSections.contains { $0.games.contains { $0.first.tablePosition != nil || $0.second.tablePosition != nil } }
+    }
 
     var showsHighlightsOnly: Bool {
         get { preferences.showsHighlightsOnly }
@@ -176,14 +187,40 @@ final class ScoreboardStore {
         sections = applyFlags(sections)
     }
 
+    // MARK: Tables
+
+    /// Loads (or refreshes, once the cache is stale) league tables and re-applies the positions.
+    func loadStandings(leagueIDs: some Sequence<String>) async {
+        let service = standingsService
+        await withTaskGroup(of: (String, Standings?).self) { group in
+            for leagueID in Set(leagueIDs) {
+                group.addTask { (leagueID, try? await service.standings(leagueID: leagueID)) }
+            }
+            for await (leagueID, result) in group {
+                if let result {
+                    if standings[leagueID] != result { standings[leagueID] = result }
+                    failedStandingsIDs.remove(leagueID)
+                } else {
+                    failedStandingsIDs.insert(leagueID)
+                }
+            }
+        }
+        let flagged = applyFlags(sections)
+        if flagged != sections { sections = flagged }
+    }
+
     // MARK: Highlights
 
-    /// Runs the highlight engine over the current sections and re-publishes once it knows more.
+    /// Loads the tables of the football leagues on screen and runs the highlight engine over the
+    /// current sections, re-publishing after each step.
     private func annotateTopMatches(for day: Date) {
         annotationTask?.cancel()
         let snapshot = sections
         guard snapshot.contains(where: { !$0.games.isEmpty }) else { return }
+        let tableLeagueIDs = snapshot.map(\.leagueID).filter { LeagueCatalog.league(id: $0)?.hasTable == true }
         annotationTask = Task { [highlightEngine] in
+            await loadStandings(leagueIDs: tableLeagueIDs)
+            guard !Task.isCancelled else { return }
             let annotated = await highlightEngine.annotate(snapshot)
             guard !Task.isCancelled else { return }
             for section in annotated {
@@ -206,6 +243,9 @@ final class ScoreboardStore {
                 game.isTopMatch = topMatchIDs.contains(game.id)
                 game.first.isFavorite = game.first.entityIDs.contains { favorites.contains($0) }
                 game.second.isFavorite = game.second.entityIDs.contains { favorites.contains($0) }
+                let table = standings[game.leagueID]
+                game.first.tablePosition = game.first.entityIDs.first.flatMap { table?.positions[$0] }
+                game.second.tablePosition = game.second.entityIDs.first.flatMap { table?.positions[$0] }
                 result[sectionIndex].games[gameIndex] = game
             }
         }
@@ -219,6 +259,10 @@ final class ScoreboardStore {
 
     #if DEBUG
     var debugSearchQuery: String?
+
+    func debugMoveSelectedDay(by days: Int) {
+        moveSelectedDay(by: days)
+    }
 
     func debugMarkTopMatches(_ ids: Set<String>) {
         annotationTask?.cancel()

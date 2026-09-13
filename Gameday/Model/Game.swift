@@ -26,6 +26,8 @@ struct Participant: Hashable, Sendable {
     var sets: [SetScore] = []
     var isWinner: Bool = false
     var seed: Int?
+    /// Current position in the league table (football leagues only). Set by the store.
+    var tablePosition: Int?
     /// True when the image is a country flag (rendered as a small rectangle rather than a square logo).
     var imageIsFlag: Bool = false
     /// Normalised ESPN identifiers ("s:600~t:124" for a team, "s:850~a:2375" for a player;

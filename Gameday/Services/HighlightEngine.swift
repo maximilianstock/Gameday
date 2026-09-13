@@ -2,7 +2,7 @@ import Foundation
 
 /// Decides which games are "top matches": both sides are top teams by the current table
 /// (or last season's while the current one is too young), or top-ranked tennis players.
-/// Standings and rankings are fetched lazily and cached in memory.
+/// Standings come from the shared standings service; rankings are fetched lazily and cached in memory.
 actor HighlightEngine {
     struct Table: Sendable {
         struct Entry: Sendable {
@@ -14,12 +14,10 @@ actor HighlightEngine {
     }
 
     private let session: URLSession
-    private var tables: [String: (fetchedAt: Date, table: Table)] = [:]
-    private var tableTasks: [String: Task<Table, Error>] = [:]
+    private let standingsService: StandingsService
     private var rankings: [String: (fetchedAt: Date, ranks: [String: Int])] = [:]
     private var rankingTasks: [String: Task<[String: Int], Error>] = [:]
 
-    private let tableTTL: TimeInterval = 6 * 60 * 60
     private let rankingTTL: TimeInterval = 24 * 60 * 60
 
     /// Domestic leagues used to judge teams in cup competitions.
@@ -27,7 +25,8 @@ actor HighlightEngine {
     private static let uefaCompetitions: Set<String> = ["soccer/uefa.champions", "soccer/uefa.europa", "soccer/uefa.europa.conf"]
     private static let domesticCups: Set<String> = ["soccer/ger.dfb_pokal", "soccer/eng.fa"]
 
-    init() {
+    init(standingsService: StandingsService) {
+        self.standingsService = standingsService
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 20
         configuration.waitsForConnectivity = false
@@ -131,68 +130,14 @@ actor HighlightEngine {
     // MARK: Standings
 
     func table(leagueID: String, season: Int?) async throws -> Table {
-        let key = "\(leagueID)|\(season.map(String.init) ?? "current")"
-        if let cached = tables[key], Date().timeIntervalSince(cached.fetchedAt) < tableTTL {
-            return cached.table
-        }
-        if let running = tableTasks[key] { return try await running.value }
-        let task = Task<Table, Error> { [session] in
-            var components = URLComponents(string: "https://site.api.espn.com/apis/v2/sports/\(leagueID)/standings")!
-            if let season { components.queryItems = [URLQueryItem(name: "season", value: String(season))] }
-            let (data, response) = try await session.data(from: components.url!)
-            if let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode) {
-                throw ScoreboardError.badResponse(http.statusCode)
-            }
-            let decoded = try JSONDecoder().decode(ESPNStandingsResponse.self, from: data)
-            return Self.buildTable(from: decoded)
-        }
-        tableTasks[key] = task
-        defer { tableTasks[key] = nil }
-        let table = try await task.value
-        tables[key] = (Date(), table)
-        return table
+        // Top matches don't hinge on the latest matchday, so an older table is fine.
+        Self.buildTable(from: try await standingsService.standings(leagueID: leagueID, season: season, maxAge: 6 * 60 * 60))
     }
 
-    private static func buildTable(from response: ESPNStandingsResponse) -> Table {
-        var groups: [ESPNStandings] = []
-        func collect(_ group: ESPNStandingsGroup) {
-            if let standings = group.standings, !(standings.entries ?? []).isEmpty { groups.append(standings) }
-            for child in group.children ?? [] { collect(child) }
-        }
-        if let top = response.standings { groups.append(top) }
-        for child in response.children ?? [] { collect(child) }
-
-        let allEntries = groups.flatMap { $0.entries ?? [] }
-        let seasonYear = response.season?.year ?? Calendar.current.component(.year, from: Date())
-
-        struct Row {
-            var id: String
-            var rank: Int?
-            var gamesPlayed: Int
-            var points: Double
-            var winPercent: Double
-            var differential: Double
-        }
-        var rows: [Row] = []
-        for entry in allEntries {
-            guard let id = EntityID.normalize(entry.team?.uid) else { continue }
-            var stats: [String: Double] = [:]
-            for stat in entry.stats ?? [] {
-                if let name = stat.name, let value = stat.value { stats[name] = value }
-            }
-            let played = stats["gamesPlayed"] ?? ((stats["wins"] ?? 0) + (stats["losses"] ?? 0) + (stats["ties"] ?? 0))
-            rows.append(Row(
-                id: id,
-                rank: stats["rank"].map { Int($0) },
-                gamesPlayed: Int(played),
-                points: stats["points"] ?? 0,
-                winPercent: stats["winPercent"] ?? 0,
-                differential: stats["pointDifferential"] ?? stats["differential"] ?? 0
-            ))
-        }
-
+    private static func buildTable(from standings: Standings) -> Table {
+        let rows = standings.groups.flatMap(\.rows)
         var entries: [String: Table.Entry] = [:]
-        let singleTableWithRanks = groups.count == 1 && rows.allSatisfy { ($0.rank ?? 0) > 0 }
+        let singleTableWithRanks = standings.groups.count == 1 && rows.allSatisfy { $0.rank != nil }
         if singleTableWithRanks {
             for row in rows { entries[row.id] = Table.Entry(rank: row.rank ?? 0, gamesPlayed: row.gamesPlayed) }
         } else {
@@ -200,13 +145,13 @@ actor HighlightEngine {
             let ordered = rows.sorted { a, b in
                 if a.winPercent != b.winPercent { return a.winPercent > b.winPercent }
                 if a.points != b.points { return a.points > b.points }
-                return a.differential > b.differential
+                return a.goalDifference > b.goalDifference
             }
             for (index, row) in ordered.enumerated() {
                 entries[row.id] = Table.Entry(rank: index + 1, gamesPlayed: row.gamesPlayed)
             }
         }
-        return Table(seasonYear: seasonYear, entries: entries)
+        return Table(seasonYear: standings.seasonYear, entries: entries)
     }
 
     // MARK: Rankings

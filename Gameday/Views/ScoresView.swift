@@ -29,14 +29,15 @@ struct ScoresView: View {
                 .font(Theme.Fonts.title)
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
-                .frame(minWidth: 118)
+                .frame(minWidth: 116)
                 .contentTransition(.numericText())
             IconButton(symbol: "chevron.right", help: "Next day") { store.goToNextDay() }
             if !store.isToday {
                 TextButton(title: "Today") { store.goToToday() }
+                    .fixedSize()
                     .padding(.leading, 2)
             }
-            Spacer(minLength: 4)
+            Spacer(minLength: 0)
             FilterToggle(isOn: store.showsHighlightsOnly) {
                 store.showsHighlightsOnly.toggle()
             }
@@ -107,7 +108,7 @@ struct ScoresView: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(store.visibleSections) { section in
-                    SectionHeader(section: section)
+                    SectionHeader(section: section, openTable: tableAction(for: section))
                     ForEach(section.games) { game in
                         GameRow(game: game, animatesHighlights: store.isPopoverShown)
                     }
@@ -116,6 +117,11 @@ struct ScoresView: View {
             .padding(.top, 2)
             .padding(.bottom, 8)
         }
+    }
+
+    private func tableAction(for section: ScoreSection) -> (() -> Void)? {
+        guard LeagueCatalog.league(id: section.leagueID)?.hasTable == true else { return nil }
+        return { store.page = .standings(leagueID: section.leagueID) }
     }
 
     // MARK: Footer
@@ -152,14 +158,16 @@ struct ScoresView: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             Spacer()
-            if store.hasTopMatches {
-                Circle()
-                    .fill(Spectrum.angular)
-                    .frame(width: 7, height: 7)
-                Text("Top match")
-                    .font(Theme.Fonts.captionMedium)
-                    .foregroundStyle(Theme.textSecondary)
-                    .padding(.trailing, store.hasLiveGames ? 8 : 0)
+            if store.hasTablePositions {
+                HStack(spacing: 3) {
+                    Text("#")
+                        .font(Theme.Fonts.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                    Text("Table position")
+                        .font(Theme.Fonts.captionMedium)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .padding(.trailing, store.hasLiveGames ? 8 : 0)
             }
             if store.hasLiveGames {
                 LiveDot()
@@ -277,8 +285,29 @@ struct FilterToggle: View {
 
 struct SectionHeader: View {
     let section: ScoreSection
+    /// Set for leagues with a table: the name becomes a link with a disclosure chevron.
+    var openTable: (() -> Void)?
 
     var body: some View {
+        HStack(spacing: 0) {
+            if let openTable {
+                Button(action: openTable) {
+                    label
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .hoverHighlight(cornerRadius: 5)
+                .help("Show \(section.title) table")
+            } else {
+                label
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, 9)
+    }
+
+    private var label: some View {
         HStack(spacing: 6) {
             if let logo = section.logoURL {
                 RemoteImage(url: logo, size: CGSize(width: 14, height: 14), fallbackSymbol: section.sport.symbolName)
@@ -303,11 +332,15 @@ struct SectionHeader: View {
                     .foregroundStyle(Theme.textTertiary)
                     .lineLimit(1)
             }
-            Spacer(minLength: 0)
+            if openTable != nil {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.leading, -1)
+            }
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 3)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
     }
 }
 

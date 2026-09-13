@@ -12,6 +12,8 @@ struct RootView: View {
                 LeaguePickerView(store: store)
             case .favorites:
                 FavoritesView(store: store)
+            case .standings(let leagueID):
+                StandingsView(store: store, leagueID: leagueID)
             }
         }
         .frame(width: Theme.width)

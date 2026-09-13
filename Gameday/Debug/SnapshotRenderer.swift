@@ -35,6 +35,13 @@ enum SnapshotRenderer {
             }
         }
         await store.waitForHighlights()
+        // `--standings <league id>` picks the table page to render.
+        let arguments = CommandLine.arguments
+        let tableLeagueID = arguments.firstIndex(of: "--standings").flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil } ?? "soccer/ger.1"
+        await store.loadStandings(leagueIDs: [tableLeagueID])
+        for row in store.standings[tableLeagueID]?.groups.flatMap(\.rows) ?? [] {
+            if let logo = row.logoURL { urls.append(logo) }
+        }
         if !live {
             preferences.addFavorite(Favorite(id: "s:600~t:132", name: "FC Bayern München", subtitle: "Bundesliga", imageURL: Fixtures.logo("soccer", "132"), sport: .soccer, isPlayer: false))
             preferences.addFavorite(Favorite(id: "s:850~a:2375", name: "Alexander Zverev", subtitle: "ATP", imageURL: URL(string: "https://a.espncdn.com/i/headshots/tennis/players/full/2375.png"), sport: .tennis, isPlayer: true))
@@ -45,34 +52,51 @@ enum SnapshotRenderer {
         await ImageStore.shared.prefetch(urls)
         print("snapshot: \(store.sections.count) sections, \(store.sections.reduce(0) { $0 + $1.games.count }) games, failed: \(store.failedLeagueIDs)")
 
+        let pages: [(String, Page)] = [
+            ("scores", .scores),
+            ("scores-highlights", .scores),
+            ("leagues", .leagues),
+            ("favorites", .favorites),
+            ("standings", .standings(leagueID: tableLeagueID)),
+        ]
+        for (pageLabel, page) in pages {
+            store.page = page
+            store.showsHighlightsOnly = pageLabel == "scores-highlights"
+            renderAppearances(store: store, name: pageLabel, into: directory)
+        }
+        // Another day shows the "Today" button, the widest header.
+        store.page = .scores
+        store.showsHighlightsOnly = false
+        store.debugMoveSelectedDay(by: -1)
+        await store.refresh()
+        renderAppearances(store: store, name: "scores-yesterday", into: directory)
+    }
+
+    private static func renderAppearances(store: ScoreboardStore, name: String, into directory: URL) {
         let appearances: [(String, NSAppearance.Name, ColorScheme)] = [
             ("light", .aqua, .light),
             ("dark", .darkAqua, .dark),
         ]
         for (label, appearanceName, scheme) in appearances {
-            for (pageLabel, page) in [("scores", Page.scores), ("scores-highlights", Page.scores), ("leagues", Page.leagues), ("favorites", Page.favorites)] {
-                store.page = page
-                store.showsHighlightsOnly = pageLabel == "scores-highlights"
-                let view = RootView(store: store)
-                    .environment(\.colorScheme, scheme)
-                    .environment(\.isSnapshotMode, true)
-                let renderer = ImageRenderer(content: view)
-                renderer.scale = 2
-                var image: NSImage?
-                NSAppearance(named: appearanceName)?.performAsCurrentDrawingAppearance {
-                    image = renderer.nsImage
-                }
-                guard let image, let tiff = image.tiffRepresentation,
-                      let bitmap = NSBitmapImageRep(data: tiff),
-                      let png = bitmap.representation(using: .png, properties: [:])
-                else {
-                    print("snapshot: failed to render \(label)-\(pageLabel)")
-                    continue
-                }
-                let file = directory.appendingPathComponent("\(pageLabel)-\(label).png")
-                try? png.write(to: file)
-                print("snapshot: wrote \(file.path)")
+            let view = RootView(store: store)
+                .environment(\.colorScheme, scheme)
+                .environment(\.isSnapshotMode, true)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            var image: NSImage?
+            NSAppearance(named: appearanceName)?.performAsCurrentDrawingAppearance {
+                image = renderer.nsImage
             }
+            guard let image, let tiff = image.tiffRepresentation,
+                  let bitmap = NSBitmapImageRep(data: tiff),
+                  let png = bitmap.representation(using: .png, properties: [:])
+            else {
+                print("snapshot: failed to render \(name)-\(label)")
+                continue
+            }
+            let file = directory.appendingPathComponent("\(name)-\(label).png")
+            try? png.write(to: file)
+            print("snapshot: wrote \(file.path)")
         }
     }
 }

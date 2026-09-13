@@ -96,8 +96,9 @@ private struct ParticipantLine: View {
                     .foregroundStyle(Theme.accent)
                     .accessibilityLabel("Favorite")
             }
-            if let seed = participant.seed {
-                Text("\(seed)")
+            // Seed for tennis players, table position for football clubs.
+            if let number = participant.seed ?? participant.tablePosition {
+                Text("\(number)")
                     .font(Theme.Fonts.caption)
                     .foregroundStyle(Theme.textTertiary)
             }

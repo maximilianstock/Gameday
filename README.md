@@ -6,6 +6,7 @@ A menu bar app for macOS that shows today's games across the leagues you follow.
 - Live scores with match clock, finished results, kick-off times for upcoming games
 - Step through days with the arrows or the keyboard (← →, `T` for today)
 - Pick leagues in the popover; changes apply immediately
+- **Tables**: football clubs show their current table position next to the name; click a league's name for its full table
 - **Top matches**: games between top teams (by the current table, or last season's early on) and Grand Slam semis and finals get a spectrum outline
 - **Favorites**: search any club or tennis player; their games get a star
 - A filter in the header shows only top matches and favorites (off at every launch)
@@ -64,8 +65,8 @@ The build is ad-hoc signed, which is why the install step above is needed. With 
 | Folder | Contents |
 | --- | --- |
 | `Gameday/App` | Entry point, `AppDelegate` (status item, popover, timers, keyboard) |
-| `Gameday/Model` | `Sport`, `League` catalog, `Game`/`ScoreSection`, `Favorite` |
-| `Gameday/Services` | ESPN client and mapper, highlight engine (standings, rankings), search, preferences, image cache |
+| `Gameday/Model` | `Sport`, `League` catalog, `Game`/`ScoreSection`, `Standings`, `Favorite` |
+| `Gameday/Services` | ESPN client and mapper, standings, highlight engine (tables, rankings), search, preferences, image cache |
 | `Gameday/State` | `ScoreboardStore`, the observable model the views render |
 | `Gameday/Views` | SwiftUI views and the `Theme` |
 | `Gameday/Debug` | Debug-only fixtures and snapshot rendering |
@@ -81,6 +82,6 @@ The build is ad-hoc signed, which is why the install step above is needed. With 
 
 Debug builds accept launch arguments that make UI checks reproducible without clicking through the menu bar:
 
-- `--snapshot <dir>` renders the scores, leagues and favorites pages in light and dark mode to PNG files using fixture data; add `--live` to use real data for today.
-- `--open-popover [--leagues | --favorites [--query text] | --highlights-only | --check-updates]` opens the popover right after launch.
+- `--snapshot <dir>` renders the scores (today and yesterday), leagues, favorites and table pages in light and dark mode to PNG files using fixture data; add `--live` to use real data, `--standings <league id>` to pick the table (default `soccer/ger.1`).
+- `--open-popover [--leagues | --favorites [--query text] | --standings <league id> | --day-offset <n> | --highlights-only | --check-updates]` opens the popover right after launch.
 - `--auto-update` checks GitHub and, if a newer release exists, installs it and relaunches; useful for testing the updater against a build with a lower version number.
