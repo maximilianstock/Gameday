@@ -5,6 +5,19 @@ protocol ScoreboardProviding: Sendable {
     func sections(for league: League, day: Date, calendar: Calendar) async throws -> [ScoreSection]
 }
 
+/// Sends each league to its data source: OpenLigaDB for leagues ESPN doesn't cover, ESPN otherwise.
+struct ScoreboardRouter: ScoreboardProviding {
+    let espn = ESPNScoreboardService()
+    let openLigaDB = OpenLigaDBService()
+
+    func sections(for league: League, day: Date, calendar: Calendar) async throws -> [ScoreSection] {
+        if league.openLigaDBShortcut != nil {
+            return try await openLigaDB.sections(for: league, day: day, calendar: calendar)
+        }
+        return try await espn.sections(for: league, day: day, calendar: calendar)
+    }
+}
+
 enum ScoreboardError: LocalizedError {
     case badResponse(Int)
     case decoding(Error)

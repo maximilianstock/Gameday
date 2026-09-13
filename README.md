@@ -2,7 +2,7 @@
 
 A menu bar app for macOS that shows today's games across the leagues you follow. One click, one list, no browser.
 
-- Football (Bundesliga, Premier League, La Liga, Serie A, Champions League and more), NFL, NBA, tennis (ATP and WTA), NHL, MLB
+- Football (Bundesliga, 2. Bundesliga, 3. Liga, Premier League, La Liga, Serie A, Champions League and more), NFL, NBA, tennis (ATP and WTA), NHL, MLB
 - Live scores with match clock, finished results, kick-off times for upcoming games
 - Step through days with the arrows or the keyboard (← →, `T` for today)
 - Pick leagues in the popover; changes apply immediately
@@ -41,7 +41,7 @@ Requires macOS 15.1 or later.
 
 ## Build from source
 
-Open `Gameday.xcodeproj` in Xcode 16 or later and run the `Gameday` scheme. No API key is needed: scores, standings and search come from ESPN's public endpoints.
+Open `Gameday.xcodeproj` in Xcode 16 or later and run the `Gameday` scheme. No API key is needed: scores, standings and search come from ESPN's public endpoints. The 3. Liga, which ESPN doesn't cover, comes from [OpenLigaDB](https://www.openligadb.de); its results are entered by volunteers, so live scores there can lag.
 
 From the command line:
 
@@ -66,7 +66,7 @@ The build is ad-hoc signed, which is why the install step above is needed. With 
 | --- | --- |
 | `Gameday/App` | Entry point, `AppDelegate` (status item, popover, timers, keyboard) |
 | `Gameday/Model` | `Sport`, `League` catalog, `Game`/`ScoreSection`, `Standings`, `Favorite` |
-| `Gameday/Services` | ESPN client and mapper, standings, highlight engine (tables, rankings), search, preferences, image cache |
+| `Gameday/Services` | ESPN and OpenLigaDB clients, standings, highlight engine (tables, rankings), search, preferences, image cache |
 | `Gameday/State` | `ScoreboardStore`, the observable model the views render |
 | `Gameday/Views` | SwiftUI views and the `Theme` |
 | `Gameday/Debug` | Debug-only fixtures and snapshot rendering |
@@ -82,6 +82,6 @@ The build is ad-hoc signed, which is why the install step above is needed. With 
 
 Debug builds accept launch arguments that make UI checks reproducible without clicking through the menu bar:
 
-- `--snapshot <dir>` renders the scores (today and yesterday), leagues, favorites and table pages in light and dark mode to PNG files using fixture data; add `--live` to use real data, `--standings <league id>` to pick the table (default `soccer/ger.1`).
+- `--snapshot <dir>` renders the scores (today and yesterday), leagues, favorites and table pages in light and dark mode to PNG files using fixture data; add `--live` to use real data, `--standings <league id>` to pick the table (default `soccer/ger.1`; the league is added to the list).
 - `--open-popover [--leagues | --favorites [--query text] | --standings <league id> | --day-offset <n> | --highlights-only | --check-updates]` opens the popover right after launch.
 - `--auto-update` checks GitHub and, if a newer release exists, installs it and relaunches; useful for testing the updater against a build with a lower version number.

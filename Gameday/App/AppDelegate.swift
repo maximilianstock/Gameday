@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var foregroundTimer: Timer?
     private var backgroundTimer: Timer?
 
-    private let store = ScoreboardStore(service: ESPNScoreboardService(), preferences: Preferences())
+    private let store = ScoreboardStore(service: ScoreboardRouter(), preferences: Preferences())
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG

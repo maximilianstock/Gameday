@@ -49,6 +49,8 @@ struct League: Identifiable, Hashable, Sendable {
     let region: String
     /// Knockout competitions without a table.
     var isCup = false
+    /// OpenLigaDB shortcut ("bl3") for leagues ESPN doesn't cover. Nil means ESPN.
+    var openLigaDBShortcut: String?
 
     var espnPath: String { id }
 
@@ -61,6 +63,7 @@ enum LeagueCatalog {
         // Football
         League(id: "soccer/ger.1", sport: .soccer, name: "Bundesliga", region: "Germany"),
         League(id: "soccer/ger.2", sport: .soccer, name: "2. Bundesliga", region: "Germany"),
+        League(id: "soccer/ger.3", sport: .soccer, name: "3. Liga", region: "Germany", openLigaDBShortcut: "bl3"),
         League(id: "soccer/ger.dfb_pokal", sport: .soccer, name: "DFB-Pokal", region: "Germany", isCup: true),
         League(id: "soccer/eng.1", sport: .soccer, name: "Premier League", region: "England"),
         League(id: "soccer/eng.fa", sport: .soccer, name: "FA Cup", region: "England", isCup: true),

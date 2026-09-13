@@ -23,8 +23,12 @@ enum SnapshotRenderer {
         defaults.removePersistentDomain(forName: "gameday.snapshot")
         let live = CommandLine.arguments.contains("--live")
         let preferences = Preferences(defaults: defaults)
-        let service: ScoreboardProviding = live ? ESPNScoreboardService() : FixtureScoreboardService()
+        let service: ScoreboardProviding = live ? ScoreboardRouter() : FixtureScoreboardService()
         let store = ScoreboardStore(service: service, preferences: preferences)
+        // `--standings <league id>` picks the table page to render and adds that league to the list.
+        let arguments = CommandLine.arguments
+        let tableLeagueID = arguments.firstIndex(of: "--standings").flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil } ?? "soccer/ger.1"
+        preferences.setLeague(tableLeagueID, selected: true)
         await store.refresh()
         var urls = live ? [] : Fixtures.imageURLs
         for section in store.sections {
@@ -35,9 +39,6 @@ enum SnapshotRenderer {
             }
         }
         await store.waitForHighlights()
-        // `--standings <league id>` picks the table page to render.
-        let arguments = CommandLine.arguments
-        let tableLeagueID = arguments.firstIndex(of: "--standings").flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil } ?? "soccer/ger.1"
         await store.loadStandings(leagueIDs: [tableLeagueID])
         for row in store.standings[tableLeagueID]?.groups.flatMap(\.rows) ?? [] {
             if let logo = row.logoURL { urls.append(logo) }
@@ -68,7 +69,9 @@ enum SnapshotRenderer {
         store.page = .scores
         store.showsHighlightsOnly = false
         store.debugMoveSelectedDay(by: -1)
-        await store.refresh()
+        // Moving the day starts its own load; wait for it instead of racing it.
+        try? await Task.sleep(for: .milliseconds(200))
+        while store.isLoading { try? await Task.sleep(for: .milliseconds(100)) }
         renderAppearances(store: store, name: "scores-yesterday", into: directory)
     }
 

@@ -236,13 +236,14 @@ final class ScoreboardStore {
 
     private func applyFlags(_ sections: [ScoreSection]) -> [ScoreSection] {
         let favorites = preferences.favoriteIDs
+        let favoriteNames = favoriteTeamNames
         var result = sections
         for sectionIndex in result.indices {
             for gameIndex in result[sectionIndex].games.indices {
                 var game = result[sectionIndex].games[gameIndex]
                 game.isTopMatch = topMatchIDs.contains(game.id)
-                game.first.isFavorite = game.first.entityIDs.contains { favorites.contains($0) }
-                game.second.isFavorite = game.second.entityIDs.contains { favorites.contains($0) }
+                game.first.isFavorite = isFavoriteTeam(ids: game.first.entityIDs, name: game.first.name, favorites: favorites, names: favoriteNames)
+                game.second.isFavorite = isFavoriteTeam(ids: game.second.entityIDs, name: game.second.name, favorites: favorites, names: favoriteNames)
                 let table = standings[game.leagueID]
                 game.first.tablePosition = game.first.entityIDs.first.flatMap { table?.positions[$0] }
                 game.second.tablePosition = game.second.entityIDs.first.flatMap { table?.positions[$0] }
@@ -250,6 +251,26 @@ final class ScoreboardStore {
             }
         }
         return result
+    }
+
+    /// Favourites are ESPN ids. Clubs from OpenLigaDB have none, so they match by name, which
+    /// ESPN and OpenLigaDB mostly write the same way ("Rot-Weiss Essen").
+    func isFavoriteTeam(id: String, name: String) -> Bool {
+        isFavoriteTeam(ids: [id], name: name, favorites: preferences.favoriteIDs, names: favoriteTeamNames)
+    }
+
+    private func isFavoriteTeam(ids: [String], name: String, favorites: Set<String>, names: Set<String>) -> Bool {
+        if ids.contains(where: favorites.contains) { return true }
+        return ids.contains(where: OpenLigaDBService.isTeamID) && names.contains(Self.comparableName(name))
+    }
+
+    private var favoriteTeamNames: Set<String> {
+        Set(preferences.favorites.filter { !$0.isPlayer && $0.sport == .soccer }.map { Self.comparableName($0.name) })
+    }
+
+    private static func comparableName(_ name: String) -> String {
+        name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .replacingOccurrences(of: "-", with: " ")
     }
 
     /// Waits for the running highlight classification, if any.

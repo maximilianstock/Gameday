@@ -65,7 +65,7 @@ struct StandingsView: View {
                         GroupHeader(title: name)
                     }
                     ForEach(group.rows) { row in
-                        StandingsRow(row: row, isFavorite: store.preferences.isFavorite(row.id))
+                        StandingsRow(row: row, isFavorite: store.isFavoriteTeam(id: row.id, name: row.name))
                     }
                 }
                 if !standings.zones.isEmpty {
@@ -78,7 +78,7 @@ struct StandingsView: View {
             EmptyState(
                 symbol: "tablecells",
                 title: "No table yet",
-                message: "ESPN hasn't published a table for this competition.",
+                message: "There is no table for this competition yet.",
                 buttonTitle: nil,
                 action: nil
             )

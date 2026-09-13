@@ -1,6 +1,6 @@
 import Foundation
 
-/// Fetches league tables from ESPN and caches them in memory. Shared by the table page, the
+/// Fetches league tables from ESPN (or OpenLigaDB, see `League.openLigaDBShortcut`) and caches them in memory. Shared by the table page, the
 /// table positions in the score list and the highlight engine, so each table is loaded once.
 actor StandingsService {
     private let session: URLSession
@@ -29,7 +29,11 @@ actor StandingsService {
             return cached.standings
         }
         if let task = running[key] { return try await task.value }
+        let shortcut = LeagueCatalog.league(id: leagueID)?.openLigaDBShortcut
         let task = Task<Standings, Error> { [session] in
+            if let shortcut {
+                return try await OpenLigaDBService.standings(shortcut: shortcut, season: season, session: session)
+            }
             var components = URLComponents(string: "https://site.api.espn.com/apis/v2/sports/\(leagueID)/standings")!
             if let season { components.queryItems = [URLQueryItem(name: "season", value: String(season))] }
             let (data, response) = try await session.data(from: components.url!)
