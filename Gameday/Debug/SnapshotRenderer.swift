@@ -65,14 +65,19 @@ enum SnapshotRenderer {
             store.showsHighlightsOnly = pageLabel == "scores-highlights"
             renderAppearances(store: store, name: pageLabel, into: directory)
         }
-        // Another day shows the "Today" button, the widest header.
+        // Another day shows the "Today" button, the widest header. `--day-offset <n>` picks the
+        // day (default yesterday).
+        let offset = arguments.firstIndex(of: "--day-offset").flatMap { $0 + 1 < arguments.count ? Int(arguments[$0 + 1]) : nil } ?? -1
         store.page = .scores
         store.showsHighlightsOnly = false
-        store.debugMoveSelectedDay(by: -1)
+        store.debugMoveSelectedDay(by: offset)
         // Moving the day starts its own load; wait for it instead of racing it.
         try? await Task.sleep(for: .milliseconds(200))
         while store.isLoading { try? await Task.sleep(for: .milliseconds(100)) }
-        renderAppearances(store: store, name: "scores-yesterday", into: directory)
+        await ImageStore.shared.prefetch(store.sections.flatMap { section in
+            [section.logoURL] + section.games.flatMap { [$0.first.imageURL, $0.second.imageURL] }
+        }.compactMap { $0 })
+        renderAppearances(store: store, name: offset == -1 ? "scores-yesterday" : "scores-day\(offset)", into: directory)
     }
 
     private static func renderAppearances(store: ScoreboardStore, name: String, into directory: URL) {

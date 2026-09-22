@@ -84,6 +84,6 @@ The build is ad-hoc signed, which is why the install step above is needed. With 
 
 Debug builds accept launch arguments that make UI checks reproducible without clicking through the menu bar:
 
-- `--snapshot <dir>` renders the scores (today and yesterday), leagues, favorites and table pages in light and dark mode to PNG files using fixture data; add `--live` to use real data, `--standings <league id>` to pick the table (default `soccer/ger.1`; the league is added to the list).
+- `--snapshot <dir>` renders the scores (today and yesterday), leagues, favorites and table pages in light and dark mode to PNG files using fixture data; add `--live` to use real data, `--standings <league id>` to pick the table (default `soccer/ger.1`; the league is added to the list), `--day-offset <n>` for the second scores day (default yesterday).
 - `--open-popover [--leagues | --favorites [--query text] | --standings <league id> | --day-offset <n> | --highlights-only | --check-updates]` opens the popover right after launch.
 - `--auto-update` checks GitHub and, if a newer release exists, installs it and relaunches; useful for testing the updater against a build with a lower version number.
