@@ -9,6 +9,16 @@ struct ESPNScoreboard: Decodable {
     var events: [ESPNEvent]?
 }
 
+extension ESPNScoreboard {
+    /// One scoreboard from several day requests. Events on more than one day (tennis
+    /// tournaments) keep their first occurrence.
+    init(merging boards: [ESPNScoreboard]) {
+        var seen: Set<String> = []
+        leagues = boards.lazy.compactMap(\.leagues).first { !$0.isEmpty }
+        events = boards.flatMap { $0.events ?? [] }.filter { seen.insert($0.id).inserted }
+    }
+}
+
 struct ESPNLeague: Decodable {
     var id: String?
     var name: String?
@@ -286,5 +296,27 @@ enum ESPNDate {
     /// Day parameter in the form ESPN expects, in the local calendar.
     static func requestString(for date: Date) -> String {
         requestFormatter.string(from: date)
+    }
+
+    private static let easternFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "America/New_York")
+        formatter.dateFormat = "yyyyMMdd"
+        return formatter
+    }()
+
+    /// Day parameters for every US Eastern day between two instants, in order.
+    static func easternDayStrings(from start: Date, to end: Date) -> [String] {
+        var eastern = Calendar(identifier: .gregorian)
+        eastern.timeZone = easternFormatter.timeZone
+        var day = eastern.startOfDay(for: start)
+        var result: [String] = []
+        while day <= end {
+            result.append(easternFormatter.string(from: day))
+            guard let next = eastern.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+        return result
     }
 }

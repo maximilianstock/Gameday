@@ -51,11 +51,15 @@ struct League: Identifiable, Hashable, Sendable {
     var isCup = false
     /// OpenLigaDB shortcut ("bl3") for leagues ESPN doesn't cover. Nil means ESPN.
     var openLigaDBShortcut: String?
+    /// Competitions between national teams.
+    var isInternational = false
+    /// Only games with at least one European national team (friendlies, which ESPN lists worldwide).
+    var europeanTeamsOnly = false
 
     var espnPath: String { id }
 
-    /// Leagues whose table Gameday shows (page and positions in the list). Football only for now.
-    var hasTable: Bool { sport == .soccer && !isCup }
+    /// Leagues whose table Gameday shows (page and positions in the list). Club football only for now.
+    var hasTable: Bool { sport == .soccer && !isCup && !isInternational }
 }
 
 enum LeagueCatalog {
@@ -76,6 +80,13 @@ enum LeagueCatalog {
         League(id: "soccer/uefa.champions", sport: .soccer, name: "Champions League", region: "Europe"),
         League(id: "soccer/uefa.europa", sport: .soccer, name: "Europa League", region: "Europe"),
         League(id: "soccer/uefa.europa.conf", sport: .soccer, name: "Conference League", region: "Europe"),
+        // Football, national teams
+        League(id: "soccer/fifa.world", sport: .soccer, name: "World Cup", region: "World", isInternational: true),
+        League(id: "soccer/uefa.euro", sport: .soccer, name: "European Championship", region: "Europe", isInternational: true),
+        League(id: "soccer/uefa.nations", sport: .soccer, name: "Nations League", region: "Europe", isInternational: true),
+        League(id: "soccer/fifa.worldq.uefa", sport: .soccer, name: "World Cup Qualifying", region: "Europe", isInternational: true),
+        League(id: "soccer/uefa.euroq", sport: .soccer, name: "Euro Qualifying", region: "Europe", isInternational: true),
+        League(id: "soccer/fifa.friendly", sport: .soccer, name: "International Friendlies", region: "Europe", isInternational: true, europeanTeamsOnly: true),
         // American football
         League(id: "football/nfl", sport: .americanFootball, name: "NFL", region: "USA"),
         League(id: "football/college-football", sport: .americanFootball, name: "College Football", region: "USA"),
@@ -100,6 +111,12 @@ enum LeagueCatalog {
         "soccer/uefa.champions",
         "soccer/uefa.europa",
         "soccer/uefa.europa.conf",
+        "soccer/fifa.world",
+        "soccer/uefa.euro",
+        "soccer/uefa.nations",
+        "soccer/fifa.worldq.uefa",
+        "soccer/uefa.euroq",
+        "soccer/fifa.friendly",
         "football/nfl",
         "basketball/nba",
         "tennis/atp",
@@ -114,4 +131,6 @@ enum LeagueCatalog {
     static func index(of id: String) -> Int { indexByID[id] ?? Int.max }
 
     static func leagues(for sport: Sport) -> [League] { all.filter { $0.sport == sport } }
+
+    static let internationalIDs: [String] = all.filter(\.isInternational).map(\.id)
 }

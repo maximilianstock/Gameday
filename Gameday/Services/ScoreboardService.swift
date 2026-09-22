@@ -44,36 +44,50 @@ final class ESPNScoreboardService: ScoreboardProviding {
     }
 
     func sections(for league: League, day: Date, calendar: Calendar) async throws -> [ScoreSection] {
-        let url = Self.endpoint(for: league, day: day, calendar: calendar)
+        let urls = Self.endpoints(for: league, day: day, calendar: calendar)
+        let boards = try await withThrowingTaskGroup(of: (Int, ESPNScoreboard).self) { group in
+            for (index, url) in urls.enumerated() {
+                group.addTask { (index, try await self.scoreboard(at: url)) }
+            }
+            var boards: [(Int, ESPNScoreboard)] = []
+            for try await result in group { boards.append(result) }
+            return boards.sorted { $0.0 < $1.0 }.map(\.1)
+        }
+        return ESPNMapper.sections(from: ESPNScoreboard(merging: boards), league: league, day: day, calendar: calendar)
+    }
+
+    private func scoreboard(at url: URL) async throws -> ESPNScoreboard {
         let (data, response) = try await session.data(from: url)
         if let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode) {
             throw ScoreboardError.badResponse(http.statusCode)
         }
-        let board: ESPNScoreboard
         do {
-            board = try JSONDecoder().decode(ESPNScoreboard.self, from: data)
+            return try JSONDecoder().decode(ESPNScoreboard.self, from: data)
         } catch {
             throw ScoreboardError.decoding(error)
         }
-        return ESPNMapper.sections(from: board, league: league, day: day, calendar: calendar)
     }
 
-    /// ESPN's day boundaries follow US Eastern time. For team sports the neighbouring days are
-    /// requested too and filtered locally, which makes the result correct in every time zone.
-    /// The tennis feed answers date ranges incompletely, but a single day returns every
-    /// tournament active on that day with its full draw, so tennis asks for one day only.
-    static func endpoint(for league: League, day: Date, calendar: Calendar) -> URL {
-        let dates: String
+    /// ESPN groups games by US Eastern days and no longer accepts date ranges (it answers 400),
+    /// so team sports ask for every Eastern day that overlaps the local day, with a few hours'
+    /// slack for leagues that cut days differently, and filter locally.
+    /// The tennis feed returns every tournament active on a day with its full draw, so tennis
+    /// asks for the local day only.
+    static func endpoints(for league: League, day: Date, calendar: Calendar) -> [URL] {
+        let dates: [String]
         if league.sport == .tennis {
-            dates = ESPNDate.requestString(for: day)
+            dates = [ESPNDate.requestString(for: day)]
         } else {
-            let from = calendar.date(byAdding: .day, value: -1, to: day) ?? day
-            let to = calendar.date(byAdding: .day, value: 1, to: day) ?? day
-            dates = "\(ESPNDate.requestString(for: from))-\(ESPNDate.requestString(for: to))"
+            let slack: TimeInterval = 4 * 60 * 60
+            let start = calendar.startOfDay(for: day)
+            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(24 * 60 * 60)
+            dates = ESPNDate.easternDayStrings(from: start.addingTimeInterval(-slack), to: end.addingTimeInterval(slack - 1))
         }
-        var components = URLComponents(string: "https://site.api.espn.com/apis/site/v2/sports/\(league.espnPath)/scoreboard")!
-        components.queryItems = [URLQueryItem(name: "dates", value: dates)]
-        return components.url!
+        return dates.map { date in
+            var components = URLComponents(string: "https://site.api.espn.com/apis/site/v2/sports/\(league.espnPath)/scoreboard")!
+            components.queryItems = [URLQueryItem(name: "dates", value: date)]
+            return components.url!
+        }
     }
 }
 
@@ -88,6 +102,7 @@ enum ESPNMapper {
             guard let competition = event.competitions?.first,
                   let start = ESPNDate.parse(competition.date ?? event.date),
                   calendar.isDate(start, inSameDayAs: day),
+                  !league.europeanTeamsOnly || (competition.competitors ?? []).contains(where: isEuropeanTeam),
                   let game = teamGame(event: event, competition: competition, league: league, start: start)
             else { continue }
             games.append(game)
@@ -337,6 +352,20 @@ enum ESPNMapper {
         default:
             return (.scheduled, nil)
         }
+    }
+
+    // MARK: National teams
+
+    /// FIFA codes of UEFA's 55 member associations, as ESPN abbreviates national teams.
+    private static let europeanTeamCodes: Set<String> = [
+        "ALB", "AND", "ARM", "AUT", "AZE", "BEL", "BIH", "BLR", "BUL", "CRO", "CYP", "CZE", "DEN", "ENG",
+        "ESP", "EST", "FIN", "FRA", "FRO", "GEO", "GER", "GIB", "GRE", "HUN", "IRL", "ISL", "ISR", "ITA",
+        "KAZ", "KOS", "LIE", "LTU", "LUX", "LVA", "MDA", "MKD", "MLT", "MNE", "NED", "NIR", "NOR", "POL",
+        "POR", "ROU", "RUS", "SCO", "SMR", "SRB", "SUI", "SVK", "SVN", "SWE", "TUR", "UKR", "WAL",
+    ]
+
+    private static func isEuropeanTeam(_ competitor: ESPNCompetitor) -> Bool {
+        competitor.team?.abbreviation.map { europeanTeamCodes.contains($0.uppercased()) } ?? false
     }
 
     // MARK: Helpers

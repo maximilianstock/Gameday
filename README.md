@@ -3,12 +3,13 @@
 A menu bar app for macOS that shows today's games across the leagues you follow. One click, one list, no browser.
 
 - Football (Bundesliga, 2. Bundesliga, 3. Liga, Premier League, La Liga, Serie A, Champions League and more), NFL, NBA, tennis (ATP and WTA), NHL, MLB
+- National teams: World Cup, European Championship, Nations League, European qualifiers and friendlies (friendlies only when a European team plays)
 - Live scores with match clock, finished results, kick-off times for upcoming games
 - Step through days with the arrows or the keyboard (← →, `T` for today)
 - Pick leagues in the popover; changes apply immediately
 - **Tables**: football clubs show their current table position next to the name; click a league's name for its full table
 - **Top matches**: games between top teams (by the current table, or last season's early on) and Grand Slam semis and finals get a spectrum outline
-- **Favorites**: search any club or tennis player; their games get a star
+- **Favorites**: search any club, national team or tennis player; their games get a star
 - A filter in the header shows only top matches and favorites (off at every launch)
 - Games whose participants aren't decided yet ("TBD") stay hidden
 - Live game count in the menu bar
@@ -76,6 +77,7 @@ The build is ad-hoc signed, which is why the install step above is needed. With 
 - League games: both teams in the top 4 (football) or top 8 (NFL, NBA, NHL, MLB) of the table. While a season is young, last season's final table is used instead.
 - Champions League, Europa League, Conference League: both teams in the top 8 of the competition table once three matchdays are played; before that, both must be top 4 in their domestic league.
 - DFB-Pokal and FA Cup: both teams top 4 in their domestic league.
+- National teams: none for now.
 - Tennis: Grand Slam semi-finals and finals, any match between two top-10 players, and finals between top-20 players.
 
 ## Debug helpers

@@ -11,7 +11,7 @@ final class Preferences {
     private static let launchAtLoginOfferedKey = "didEnableLaunchAtLoginAutomatically"
     private static let selectionVersionKey = "leagueSelectionVersion"
     /// Bump when leagues are added to the default selection; existing users get them added once.
-    private static let currentSelectionVersion = 2
+    private static let currentSelectionVersion = 3
 
     private let defaults: UserDefaults
 
@@ -39,8 +39,11 @@ final class Preferences {
             let storedVersion = defaults.integer(forKey: Self.selectionVersionKey)
             if storedVersion < 2 {
                 ids = Self.normalized(ids + ["soccer/uefa.europa", "soccer/uefa.europa.conf"])
-                defaults.set(ids, forKey: Self.selectedLeaguesKey)
             }
+            if storedVersion < 3 {
+                ids = Self.normalized(ids + LeagueCatalog.internationalIDs)
+            }
+            defaults.set(ids, forKey: Self.selectedLeaguesKey)
             selectedLeagueIDs = ids
         } else {
             selectedLeagueIDs = Self.normalized(LeagueCatalog.defaultSelection)

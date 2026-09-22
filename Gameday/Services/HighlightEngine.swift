@@ -51,6 +51,8 @@ actor HighlightEngine {
         case .tennis:
             return await isTennisTopMatch(game)
         case .soccer:
+            // National teams have no club table to judge them by.
+            if LeagueCatalog.league(id: game.leagueID)?.isInternational == true { return false }
             if Self.uefaCompetitions.contains(game.leagueID) {
                 if let byTable = await bothInTop(8, game: game, leagueID: game.leagueID, minGames: 3) { return byTable }
                 return await bothDomesticTop(4, game: game)
